@@ -1,0 +1,7 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "duart.h": "c",
+        "ddraig.h": "c"
+    }
+}
