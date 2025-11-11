@@ -1,20 +1,17 @@
-# Makefile for Y Ddraig ROM
+# Makefile for Y Ddraig bootloader
 CPU := 68000
-TARGET := bootmon
+TARGET := bootload
 
 # boards: ddraig68k, ddraig030 or soundcard
 BOARD ?= ddraig68k
-# destinations: rom or ram. ROM images with different ROM addressed designed to
-#               run out of flash memory or ROM images to be loaded into RAM.
-DESTINATION ?= ram
 
 # Build directory
 BUILD_DIR := build
 
-LINKER_FILE ?= "./$(BOARD)_$(DESTINATION).ld"
+LINKER_FILE ?= "./$(BOARD).ld"
 
 ifeq ($(OS),Windows_NT)
-    CROSSDIR ?= C:/dev/lang/m68k-elf-os
+    CROSSDIR ?= C:/dev/lang/m68k-elf-13
 else
     CROSSDIR ?= /opt/m68k-elf-13
 endif
@@ -73,8 +70,7 @@ ifneq ($(findstring GCC,$(shell $(CC) --version 2>/dev/null)),)
     endif
 endif
 
-SRCS := startup.c main.c interrupts.c duart.c conio.c ringbuffer.c \
-        commands.c decodecmd.c memdump.c srec.c string.c
+SRCS := startup.c monitor.c interrupts.c srec.c
 
 OBJS := $(SRCS:%.c=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)

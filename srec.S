@@ -1,13 +1,12 @@
-#include "hardware_defs.h"
-#include "duart_defs.h"
+#include "duart.h"
 
     .globl      load_srecord
 
     .section .text
 
-#define KEY_CR      0x0D
-#define KEY_LF      0x0A
-#define KEY_ESCAPE  0x1B
+    .equ KEY_CR, 0x0D
+    .equ KEY_LF, 0x0A
+    .equ KEY_ESCAPE, 0x1B
 
 serial_read:
       movem.l a0/d1,-(sp)           // save A0/D1
