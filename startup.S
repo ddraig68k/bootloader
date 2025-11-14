@@ -1,119 +1,121 @@
+#include "duart.h"
 
     .globl __start
 
-	.extern monitor_start
+    .equ DELAY_COUNT, 1000000
+    .equ ESC, 0x1B
 
     .section .text
 __start:
 
-	move.w	#0x2700, sr 			    /* Disable interrupts */
+	move.w	#0x2700, sr 			    | Disable interrupts
+	movea.l	#__stack_end, sp
 
-    /* Set up initial vector table */
-.copy_vectors:
-    move.l  #vectors_end,a0             /* Start into A0 (source) */
-    move.l  #0x400,a1                   /* 0x400 into A1 (destination) */
+    | clear BSS
+    lea.l   __s_bss,A0
+    move.l  #__e_bss,D0
+    sub.l   A0,D0                       | Get the bss section length
+    addq.l  #1,D0                       | Adjust in case of odd number
+    lsr.l   #1,D0                       | Divide by 2 (word length)
+    beq     .copy_data                  | No BSS data
 
-.isr_copy_loop:
-    move.l  a1,d0                       /* Have we reached destination zero? */
-    beq.s   .isr_copy_done
+.clear_bss:
+    clr.w   (A0)+
+    subq.l  #1,D0
+    bne     .clear_bss
 
-    move.l  -(a0),-(a1)                 /* Copy long source to dest, with predecrement */
-    bra.s   .isr_copy_loop
-.isr_copy_done:
+    | Copy initialised data from ROM into RAM
+    lea.l   __e_text,A0                 | Move data to RAM
+    lea.l   __s_data,A1
+    move.l  #__e_data,D0
+    sub.l   A1,D0                       | Get the data section length
+    addq.l  #1,D0
+    lsr.l   #1,D0                       | Divide by 2 (word length)
+    beq     boot_check                  | No DATA section
 
-	move.l	#__stack_end, a0
+.copy_data:
+    move.w  (A0)+,(A1)+
+    subq.l  #1,D0
+    bne     .copy_data
 
-	cmp.l	#0, a0
-	beq    1f
-	move.l	a0, sp
+boot_check:
+    bsr     init_duart                  | Initialise Serial
 
-1:
-	/* Clear BSS */
- 	lea.l   __e_bss, a0
- 	move.l  a0, d2
- 	lea.l   __s_bss, a1
- 	sub.l   a1, a0
- 	move.l  a0, d0
- 	bra   3f
-2:	clr.b   (a1)+
-3:	sub.l 	#1, d0
-	cmp.l 	#-1, d0
-	bne   	2b
+    lea     intro_msg,a0                | Display bootloader startup
+    jsr     print_string
 
-	jmp		monitor_start
+    | For initial testing, start monitor
+    jmp     start_monitor
 
-   .section .rodata
+    | After startup, Wait for a signal over the serial port to
+    | initialise the download or flash routines before booting from the flash
+    | Pressing escape, or no valid flash image will boot into monitor mode
+    bsr     bootload_wait
+    cmp.b   #0,d0                   | Enter upload ROM mode?
+    beq     .run_monitor
+.check_blmode:
+    cmp.b   #1,d0                   | Enter bootloader mode?
+    bne     .check_monitor
+    jmp     flash_rom
+.check_monitor:
+    cmp.b   #2,d0                   | Esc pressed for monitor
+    bne     .boot_flash
+    jmp     .run_monitor
+    | Any other response, boot from flash
+.boot_flash:
+    bsr     valid_flash             | Check flash has a valid image
+    bne     .invalid_flash
+    jmp     boot_flash              | Run the flash code
 
-vectors_start:
-    dc.l    _stack_end
-    dc.l    __start
+.invalid_flash:
+    lea.l   invalid_image,a0
+    jsr     print_string            | No vlaid flash image
 
-    dc.l    isr_bus_error               | 02: Bus Error
-    dc.l    isr_address_error           | 03: Address Error
-    dc.l    isr_illegal_instruction     | 04: Illegal Instruction
-    dc.l    isr_generic                 | 05: Divide by Zero
-    dc.l    isr_generic                 | 06: CHK Instruction
-    dc.l    isr_generic                 | 07: TRAPV Instruction
-    dc.l    isr_generic                 | 08: Privilege Violation
-    dc.l    isr_generic                 | 09: Trace
-    dc.l    isr_generic                 | 0A: Line 1010 Emulator
-    dc.l    isr_generic                 | 0B: Line 1111 Emulator
-    dc.l    isr_generic                 | 0C: Reserved
-    dc.l    isr_generic                 | 0D: Reserved
-    dc.l    isr_generic                 | 0E: Format error (MC68010 Only)
-    dc.l    isr_generic                 | 0F: Uninitialized Vector
+.run_monitor:
+    jmp     start_monitor
 
-    dc.l    isr_generic                 | 10: Reserved
-    dc.l    isr_generic                 | 11: Reserved
-    dc.l    isr_generic                 | 12: Reserved
-    dc.l    isr_generic                 | 13: Reserved
-    dc.l    isr_generic                 | 14: Reserved
-    dc.l    isr_generic                 | 15: Reserved
-    dc.l    isr_generic                 | 16: Reserved
-    dc.l    isr_generic                 | 17: Reserved
 
-    dc.l    isr_generic                 | 18: Spurious Interrupt
+/*
+ * Waits and checks the serial port to see if it has received the '@' character and
+ * respond with '&'. If the character is not seen after a time, the bootloader will
+ * continue to booting from Flash. If ESC has been sent, then the bootloader enters
+ * the monitor mode.
+ *
+ * Returns 0 for timeout/boot from flash
+ * Returns 1 for bootloader mode
+ * Returns 2 for run monitor
+ */
+bootload_wait:
+    move.l  #DELAY_COUNT,d3         | Number of counts before entering the bootloader
+    movea.l #DUART_BASE,a1          | DUART address
 
-    dc.l    isr_generic                 | 19: Level 1 Autovector
-    dc.l    isr_generic                 | 1A: Level 2 Autovector
-    dc.l    isr_generic                 | 1B: Level 3 Autovector
-    dc.l    isr_generic                 | 1C: Level 4 Autovector
-    dc.l    isr_generic                 | 1D: Level 5 Autovector
-    dc.l    isr_generic                 | 1E: Level 6 Autovector
-    dc.l    isr_generic                 | 1F: Level 7 Autovector
+.bl_check_char:
+    btst.b  #BIT_RxRDY,DUART_SRA(a1)    | Test the Rx status
+    bne     .bl_dec_count
 
-    dc.l    isr_generic                 | 20: TRAP Handler (unused)
-    dc.l    isr_generic                 | 21: TRAP Handler (unused)
-    dc.l    isr_generic                 | 22: TRAP Handler (unused)
-    dc.l    isr_generic                 | 23: TRAP Handler (unused)
-    dc.l    isr_generic                 | 24: TRAP Handler (unused)
-    dc.l    isr_generic                 | 25: TRAP Handler (unused)
-    dc.l    isr_generic                 | 26: TRAP Handler (unused)
-    dc.l    isr_generic                 | 27: TRAP Handler (unused)
-    dc.l    isr_generic                 | 28: TRAP Handler (unused)
-    dc.l    isr_generic                 | 29: TRAP Handler (unused)
-    dc.l    isr_generic                 | 2A: TRAP Handler (unused)
-    dc.l    isr_generic                 | 2B: TRAP Handler (unused)
-    dc.l    isr_generic                 | 2C: TRAP Handler (unused)
-    dc.l    isr_generic                 | 20: TRAP Handler (unused)
-    dc.l    isr_generic            		| 2D: TRAP#13 handler
-    dc.l    isr_generic            		| 2E: TRAP#14 handler
-    dc.l    isr_generic            		| 2F: TRAP#15 handler
-    dc.l    isr_generic                 | 30-3F: Remaining Reserved vectors
-    dc.l    isr_generic                 | 31: Reserved
-    dc.l    isr_generic                 | 32: Reserved
-    dc.l    isr_generic                 | 33: Reserved
-    dc.l    isr_generic                 | 34: Reserved
-    dc.l    isr_generic                 | 35: Reserved
-    dc.l    isr_generic                 | 36: Reserved
-    dc.l    isr_generic                 | 37: Reserved
-    dc.l    isr_generic                 | 38: Reserved
-    dc.l    isr_generic                 | 39: Reserved
-    dc.l    isr_generic                 | 3A: Reserved
-    dc.l    isr_generic                 | 3B: Reserved
-    dc.l    isr_generic                 | 3C: Reserved
-    dc.l    isr_generic                 | 3D: Reserved
-    dc.l    isr_generic                 | 3E: Reserved
-    dc.l    isr_generic                 | 3F: Reserved
-vectors_end:
+    move.b  DUART_RBA(a1),d0        | Read the character
+    cmp.b   #'@',d0                 | Bootloader start char?
+    bne     .bl_chk_esc
+    moveq.l #1,d0                   | Enter bootloader
+    jmp     .bl_exit
+
+.bl_chk_esc:
+    cmp.b   #ESC,d0
+    bne     .bl_dec_count
+    moveq.l #2,d0                   | Enter monitor
+    jmp     .bl_exit
+
+.bl_dec_count:
+    subq.l  #1,d3                   | decrement loop counter
+    bne     .bl_check_char
+    moveq.l #0,d0                   | No character received, boot as normal
+
+.bl_exit:
+    rts
+
+    .section .bss
+
+    .section .rodata
+intro_msg:
+    .asciz "Y Ddraig bootloader, waiting for command\n\r"
 

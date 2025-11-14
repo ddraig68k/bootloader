@@ -3,31 +3,32 @@
     .globl monitor_start
 
     .equ DELAY_COUNT, 1000000
-    .equ ESC, 127
+    .equ ESC, 0x1B
 
     .section .text
-monitor_start:
+start_monitor:
     bsr     init_duart              | Initialise the DUART
 
     lea     intro_msg,a0
     jsr     print_string            | Display bootloader message
 
+    | For initial testing, start monitor
+
     | After startup, Wait for a signal over the serial port to
     | initialise the download or flash routines before booting from the flash
     | Pressing escape, or no valid flash image will boot into monitor mode
     bsr     bootload_wait
-    cmp.b   #1,d0                   | Enter upload ROM mode?
-    bne     .check_flash
-    jmp     upload_rom
-.check_flash:
-    cmp.b   #2,d0                   | Enter flash ROM mode?
+    cmp.b   #0,d0                   | Enter upload ROM mode?
+    beq     .run_monitor
+.check_blmode:
+    cmp.b   #1,d0                   | Enter bootloader mode?
     bne     .check_monitor
     jmp     flash_rom
 .check_monitor:
-    cmp.b   #3,d0                   | Esc pressed for monitor
+    cmp.b   #2,d0                   | Esc pressed for monitor
     bne     .boot_flash
     jmp     .run_monitor
-
+    | Any other response, boot from flash
 .boot_flash:
     bsr     valid_flash             | Check flash has a valid image
     bne     .invalid_flash
@@ -38,7 +39,7 @@ monitor_start:
     jsr     print_string            | No vlaid flash image
 
 .run_monitor:
-    jmp .run_monitor
+    jmp start_monitor
 
 
 /*
@@ -47,6 +48,9 @@ monitor_start:
  * continue to booting from Flash. If ESC has been sent, then the bootloader enters
  * the monitor mode.
  *
+ * Returns 0 for timeout/boot from flash
+ * Returns 1 for bootloader mode
+ * Returns 2 for run monitor
  */
 bootload_wait:
     move.l  #DELAY_COUNT,d3         | Number of counts before entering the bootloader
@@ -79,9 +83,6 @@ bootload_wait:
     .section .bss
 
     .section .rodata
-intro_msg:
-    .asciz "Y Ddraig bootloader, waiting for command\n\r"
-
 invalid_image:
     .asciz "No valid bootable image found in flash, booting into monitor\n\r"
 

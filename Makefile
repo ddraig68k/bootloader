@@ -11,9 +11,9 @@ BUILD_DIR := build
 LINKER_FILE ?= "./$(BOARD).ld"
 
 ifeq ($(OS),Windows_NT)
-    CROSSDIR ?= C:/dev/lang/m68k-elf-13
+    CROSSDIR ?= C:/dev/lang/m68k-ddraig-elf
 else
-    CROSSDIR ?= /opt/m68k-elf-13
+    CROSSDIR ?= /opt/m68k-ddraig-elf
 endif
 
 # Output files
