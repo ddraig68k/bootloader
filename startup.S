@@ -2,7 +2,7 @@
 
     .globl __start
 
-    .equ DELAY_COUNT, 1000000
+    .equ DELAY_COUNT, 1000000           | Number of loops before timeout
     .equ ESC, 0x1B
 
     .section .text
