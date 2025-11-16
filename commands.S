@@ -32,7 +32,7 @@ command_peek:
     bsr prints
     lea parser_args,a2
     move.l (a2)+,a0
-    jsr string_to_hex
+    bsr string_to_hex
     move.l d0,a1                    | Address to look at
     move.b (a1),d0                  | Get the data
     jsr print_2hex                  | Print the data
@@ -86,7 +86,7 @@ command_poke:
     jsr string_to_hex               | Convert from string
     move.b d0,(a1)+                 | Store the data
     subq.l #1,d1
-    bra .poke_data
+    bne .poke_data
 .poke_done:
     movem.l (sp)+,a0-a2/d0-d1
     rts
@@ -117,7 +117,7 @@ command_unknown:
     lea.l s_cmd_unknown,a0
     bsr prints
     lea.l parser_cmd,A2
-    move.l (a2),a3
+    move.l (a2),a0
     bsr prints
     bsr print_newline
     lea.l s_cmd_unknown_help,a0
@@ -135,8 +135,8 @@ s_print_poke:       .asciz "Function POKE called\n\r"
 s_print_pokew:      .asciz "Function POKEW called\n\r"
 s_print_pokel:      .asciz "Function POKEW called\n\r"
 
-s_cmd_unknown:      .asciz "Unknown command "
-s_cmd_unknown_help: .asciz "Use HELP to get a list of commands\n\r"
+s_cmd_unknown:      .asciz "Unknown command: "
+s_cmd_unknown_help: .asciz "\n\rUse HELP to get a list of commands\n\r"
 s_cmd_notimplemnt:  .asciz "Command not implemnted\n\r"
 
 s_aboutmsg:         .asciz "Y Dddraig bootloader/monitor.\n\r"

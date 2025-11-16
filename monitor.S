@@ -16,6 +16,8 @@ start_monitor:
     bsr init_parser                     | Initialise the command parser
 
 .main_loop:
+    lea s_prompt,a0                     | Display prompt
+    bsr prints
     bsr read_input                      | Get the command from serial
     bsr execute_parser                  | Execute the command
 
@@ -74,8 +76,8 @@ read_input:
 
     move.b d0,(a1)+                     | Store the character in the buffer
     addq #1,d1                          | Increment character count
-    tst.b serial_echo                   | Should be echo the character back to the terminal?
-    beq .rb_noecho
+    |tst.b serial_echo                   | Should be echo the character back to the terminal?
+    |beq .rb_noecho
     bsr char_out                        | Write the character
 .rb_noecho:
     cmp.w #MAX_INPUT_BUF,d1             | Reached buffer limit?
@@ -85,8 +87,8 @@ read_input:
 
 .rb_handle_del:
     bsr char_out                        | Write the backspace
-    tst.b serial_echo                   | Echo back to terminal?
-    beq .rb_nodelecho
+    |tst.b serial_echo                   | Echo back to terminal?
+    |beq .rb_nodelecho
     move.b #' ',d0                      | Clear the existing character by overwriting with a space
     bsr char_out
     move.b #BACKSP,d0
@@ -248,7 +250,7 @@ parse_input_buf:
     lea s_parse_parcnt,a0
     bsr prints                          | Print parameter count prompt
     move.l parser_argc,d0
-    bsr print_2hex                      | Print parameter count int hex
+    bsr print_decimal                   | Print parameter count
     bsr print_newline
 
     cmp.b #0,d0
@@ -376,6 +378,7 @@ serial_echo:
 s_moninit:          .asciz "\n\rDragonMon V0.1 for Y Ddraig\n\r"
 s_cmd_need_min:     .asciz "Command requires at least "
 s_cmd_need_args:    .asciz " arguments\n\r"
+s_prompt:           .asciz ">"
 
 s_parse_cmd:        .asciz "Command = "
 s_parse_nocmd:      .asciz "No command entered."

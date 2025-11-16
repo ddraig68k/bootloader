@@ -77,7 +77,7 @@ DEPS := $(OBJS:.o=.d)
 .PHONY: all clean roms size makedirs
 
 # --- Build Targets ---
-all: makedirs $(BINARY) $(SRECORD) size
+all: makedirs $(BINARY) $(SRECORD)
 
 makedirs:
 ifeq ($(OS),Windows_NT)

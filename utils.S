@@ -1,6 +1,6 @@
     .globl  string_to_hex
 
-    .section text
+    .section .text
 /*
  * Converts a ascii character to a number
  * Value passed in D0
