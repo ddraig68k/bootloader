@@ -1,9 +1,7 @@
-#include "duart.h"
+    .include "duart.inc"
+    .include "constants.inc"
 
     .globl start_monitor
-
-    .equ    PARSE_MAX_ARGS, 32          | Maximun number of arguments
-    .equ    MAX_INPUT_BUF, 512          | Maximum character for input buffer
 
     .section .text
 /*
@@ -30,7 +28,7 @@ start_monitor:
 init_parser:
     movem.l a0-a1/d0-d1,-(sp)           | Push used registers
 
-    move.b #1,echo_serial               | Enable echo charater to serial
+    move.b #1,serial_echo               | Enable echo charater to serial
     lea parser_vars_start,a0            | Parser command parameters
     lea  parser_vars_end,a1
     move.l a1,d0
@@ -67,11 +65,11 @@ read_input:
     beq .rb_getchar                     | Ignore linefeed
     cmp.b #CR,d0
     beq .rb_got_buf                     | Got a CR so data received
-    cmp.b #BS,d0
+    cmp.b #BACKSP,d0
     beq .rb_handle_del                  | Process a delete character
-    cmp.b #$20,d0                       | Check the character is in valid ascii range
+    cmp.b #0x20,d0                      | Check the character is in valid ascii range
     blt .rb_getchar
-    cmp.b #$7E,d0
+    cmp.b #0x7E,d0
     bgt .rb_getchar
 
     move.b d0,(a1)+                     | Store the character in the buffer
@@ -85,19 +83,19 @@ read_input:
     subq.l #1,d1                        | Decrement counter, buffer null terminated
     bra .rb_got_buf                     | Finish receiving
 
-.rb_handle_del
+.rb_handle_del:
     bsr char_out                        | Write the backspace
     tst.b serial_echo                   | Echo back to terminal?
     beq .rb_nodelecho
     move.b #' ',d0                      | Clear the existing character by overwriting with a space
     bsr char_out
-    move.b #BS,d0
+    move.b #BACKSP,d0
     bsr char_out                        | Resent the backspace
 .rb_nodelecho:
     subq #1,a1			                | decrement the pointer and count
     subq #1,d1
     bra .rb_getchar                     | Get next character
-.rb_got_buf
+.rb_got_buf:
     move.b #0,(a1)                      | Null terminate the buffer
     move.l d1,parser_cmdlen             | Store the command length
     bsr print_newline
@@ -112,7 +110,7 @@ read_input:
 execute_parser:
     movem.l a2-a3/d0-d3,-(sp)
 
-    lea parser_buf,a3                   | Write the command string
+    lea parser_buffer,a3                | Write the command string
     jsr parse_input_buf                 | Parser the command line data
 
     jsr lookup_command                  | Decode the command
@@ -128,7 +126,7 @@ execute_parser:
     move.l parser_argc,d1               | Get the required number of arguments
     beq .needs_min
     cmp.l d0,d1
-    TODO: Check if minimum number of commands rec
+    |TODO: Check if minimum number of commands rec
     bra .run_command
 
 .needs_min:
@@ -140,10 +138,10 @@ execute_parser:
     bsr prints
     bra .exit_parser
 
-.run_command
+.run_command:
     jsr (a2)                            | Execute the command
 
-.exit_parser
+.exit_parser:
     movem.l (sp)+,a2-a3/d0-d3
     rts
 
@@ -214,7 +212,7 @@ parse_input_buf:
     move.l A2,d0                        | Save parameter start pointer
     subq #1,d0
     move.l d0,(a3)+
-    bsr parse_ib_find_end               | Skip to end of data
+    bsr parse_rb_find_end               | Skip to end of data
     move.b #0,(a2)+                     | Null terminate parameter
     addq #1,d3                          | Increment param count
     cmp #PARSE_MAX_ARGS,d3              | Have we reached the maximum arguments?
@@ -235,7 +233,7 @@ parse_input_buf:
     lea parser_cmd,a2                   | Command pointer
     move.l (a2),d0
     bne .ps_cmd                         | Check that there's acutally a command
-    lea s_parase_nocmd,a0               | No command message
+    lea s_parse_nocmd,a0                | No command message
     bsr prints
     bsr print_newline
     bra .pi_exit
@@ -261,7 +259,7 @@ parse_input_buf:
     subq #1,d1
 
 .print_param:
-    lea s_parse_params,a0
+    lea s_parse_param,a0
     bsr prints                          | Print paramters prompt
     move.l (a2)+,a0                     | Get pointer to next parameter
     bsr prints                          | Print parameter string
@@ -293,9 +291,9 @@ lookup_command:
 
 .lc_check_cmd:
     move.b (a0)+,d0                     | Get passed char
-    cmp.b #$40,d0
+    cmp.b #0x40,d0
     blt.s .ic_nochange
-    and.b #%11011111,d0                 | Make uppercase
+    and.b #0xDF,d0                      | Make uppercase
 .ic_nochange:
     move.b (a1)+,d1                     | Get command char
     cmp.b d0,d1
@@ -347,6 +345,9 @@ command_execute:
     rts
 
 
+init_vectors:
+    rts
+
 /*
  * Data and constants
  */
@@ -362,15 +363,19 @@ parser_args:        ds.l PARSE_MAX_ARGS     | Pointers to arguments
 parser_buffer:      ds.b MAX_INPUT_BUF      | Space for command line buffer
 parser_vars_end:
 
+    .globl parser_cmd
+    .globl parser_argc
+    .globl parser_args
+
+
     .align 2
 serial_echo:
-    dc.b    1
+    ds.b    1
 
     .section .rodata
 s_moninit:          .asciz "\n\rDragonMon V0.1 for Y Ddraig\n\r"
 s_cmd_need_min:     .asciz "Command requires at least "
 s_cmd_need_args:    .asciz " arguments\n\r"
-
 
 s_parse_cmd:        .asciz "Command = "
 s_parse_nocmd:      .asciz "No command entered."
@@ -378,10 +383,6 @@ s_parse_parcnt:     .asciz "Paramater Count = "
 s_parse_param:      .asciz "Parameter = "
 
 s_exec_cmd:         .asciz "Execute command: "
-
-s_cmd_unknown:      .asciz "Unknown command "
-s_cmd_unknown_help  .asciz "Use HELP to get a list of commands\n\r"
-s_cmd_notimplemnt   .asciz "Command not implemnted\n\r"
 
 
 | Monitor command strings

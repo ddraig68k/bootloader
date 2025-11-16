@@ -1,7 +1,6 @@
-    .globl __start
+    .include "constants.inc"
 
-    .equ DELAY_COUNT, 1000000           | Number of loops before timeout
-    .equ ESC, 0x1B
+    .globl __start
 
     .section .text
 __start:
@@ -39,8 +38,8 @@ __start:
 boot_check:
     bsr init_duart                      | Initialise Serial
 
-    lea intro_msg,a0                    | Display bootloader startup
-    jsr print_string
+    lea s_intro_msg,a0                  | Display bootloader startup
+    jsr prints
 
     | For initial testing, start monitor
     jmp start_monitor
@@ -66,8 +65,8 @@ boot_check:
     jmp boot_flash              | Run the flash code
 
 .invalid_flash:
-    lea.l invalid_image,a0
-    bsr print_string            | No vlaid flash image
+    lea.l s_invalid_image,a0
+    bsr prints                  | No vlaid flash image
 
 .run_monitor:
     jmp     start_monitor
@@ -85,7 +84,6 @@ boot_check:
  */
 bootload_wait:
     move.l #DELAY_COUNT,d3          | Number of counts before entering the bootloader
-    movea.l #DUART_BASE,a1          | DUART address
 
 .bl_check_char:
     bsr has_char                    | Test the Rx status
@@ -100,7 +98,7 @@ bootload_wait:
     jmp .bl_exit
 
 .bl_chk_esc:
-    cmp.b #ESC,d0                   | Escape key pressed?
+    cmp.b #ESCAPE,d0                | Escape key pressed?
     bne .bl_dec_count
     moveq.l #2,d0                   | Enter monitor mode
     jmp .bl_exit
@@ -113,9 +111,20 @@ bootload_wait:
 .bl_exit:
     rts
 
-    .section .bss
+/*
+ * Check is there is a valid flash image before booting from it
+ */
+valid_flash:
+    rts         | Do nothing for now
+
+start_bootloader:
+    rts
+
+boot_flash:
+    rts
+
 
     .section .rodata
-intro_msg:
-    .asciz "Y Ddraig bootloader, waiting for command\n\r"
+s_intro_msg:        .asciz "Y Ddraig bootloader, waiting for command...\n\r"
+s_invalid_image:    .asciz "No valid boot image found in flash.\n\rStarting monitor...\n\r"
 

@@ -1,19 +1,16 @@
-#include "duart.h"
+    .include "ddraig.inc"
+    .include "duart.inc"
+    .include "constants.inc"
 
     .globl      load_srecord
 
     .section .text
-
-    .equ KEY_CR, 0x0D
-    .equ KEY_LF, 0x0A
-    .equ KEY_ESCAPE, 0x1B
-
 serial_read:
       movem.l a0/d1,-(sp)           // save A0/D1
       lea DUART_BASE,a0
 .readpoll:
       move.b DUART_SRA(a0),d1
-      btst #BIT_RxRDY,d1
+      btst #RxRDY,d1
       beq .readpoll
       move.b DUART_RBA(a0),d0
       movem.l (sp)+,a0/d1           // restore registers
@@ -24,7 +21,7 @@ serial_write:
       lea DUART_BASE,a0
 .writepoll:
       move.b DUART_SRA(a0),d1       // wait for OK to transmit
-      btst #BIT_TxRDY,d1
+      btst #TxRDY,d1
       beq .writepoll
 
       move.b d0,DUART_TBA(a0)       // send Char
@@ -61,7 +58,7 @@ load_srecord:
     bra.s   .get_type
 
 .check_cancel:
-    cmp.b   #KEY_ESCAPE,d0      // Has the escape key been pressed?
+    cmp.b   #ESCAPE,d0      // Has the escape key been pressed?
     bne     .wait_start
     move.l  #1,d0               // Return 1 for escape pressed
     bra     .exit_srec          // Jump to exit
@@ -79,9 +76,9 @@ load_srecord:
 .end_found:
     // Wait until the end of the last line
     bsr     serial_read
-    cmp.b   #KEY_CR,d0
+    cmp.b   #CR,d0
     beq     .end_crlf_found
-    cmp.b   #KEY_LF,d0          // No CR so check for a LF character instead
+    cmp.b   #LF,d0          // No CR so check for a LF character instead
     bne     .end_found
 
 .end_crlf_found:
@@ -244,7 +241,7 @@ load_srecord:
 // Check for any extra characters on the serial port
 .exit_getchar:
     move.b  DUART_SRA(a0),d1
-    btst    #BIT_RxRDY,d1
+    btst    #RxRDY,d1
     beq     .exit_nochar
     move.b  DUART_RBA(a0),d0
 .exit_nochar:
@@ -267,9 +264,9 @@ print_string:
 // Print a CR/LF to the serial port
 print_newline:
     move.l  d0,-(sp)
-    move.b  #KEY_CR,d0
+    move.b  #CR,d0
     bsr     serial_write
-    move.b  #KEY_LF,d0
+    move.b  #LF,d0
     bsr     serial_write
     move.l  (sp)+,d0
     rts

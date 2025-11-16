@@ -25,7 +25,7 @@ BINARY_EVEN = $(BUILD_DIR)/$(TARGET)_even.bin
 BINARY_ODD  = $(BUILD_DIR)/$(TARGET)_odd.bin
 
 # Toolchain
-PREFIX := m68k-elf-
+PREFIX := m68k-ddraig-elf-
 CC      = $(CROSSDIR)/bin/$(PREFIX)gcc
 LD      = $(CROSSDIR)/bin/$(PREFIX)ld
 OBJCOPY = $(CROSSDIR)/bin/$(PREFIX)objcopy
@@ -59,7 +59,6 @@ CFLAGS = -std=c11 -nostartfiles -Wall -Wpedantic -Werror -nostdlib \
 LDFLAGS = -T $(LINKER_FILE) -Map=$(MAP) -print-memory-usage
 
 GCC_VERSION = $(shell $(CC) -dumpversion)
-LIBS = -L$(CROSSDIR)/lib/gcc/m68k-elf/$(GCC_VERSION) -lgcc
 
 # GCC-version-specific settings
 ifneq ($(findstring GCC,$(shell $(CC) --version 2>/dev/null)),)
@@ -70,9 +69,9 @@ ifneq ($(findstring GCC,$(shell $(CC) --version 2>/dev/null)),)
     endif
 endif
 
-SRCS := startup.c monitor.c interrupts.c srec.c
+SRCS := startup.S monitor.S interrupts.S srec.S commands.S serial.S print.S utils.S
 
-OBJS := $(SRCS:%.c=$(BUILD_DIR)/%.o)
+OBJS := $(SRCS:%.S=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
 .PHONY: all clean roms size makedirs

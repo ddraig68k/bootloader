@@ -9,7 +9,7 @@
 			"enabled": false
 		},
 		"files.associations": {
-			"*.inc": "m68k",
+			"*.inc": "m68k-as",
 			"duart.h": "c",
 			"diskio.h": "c",
 			"ff.h": "c",

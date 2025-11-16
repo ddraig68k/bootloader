@@ -4,7 +4,7 @@ SEARCH_DIR(.)
 MEMORY
 {
     RAM (rwx) : ORIGIN = 0x00002000, LENGTH = 1024K-0x2000
-    ROM (rx) : ORIGIN = 0x00f80000, LENGTH = 512K
+    ROM (rx) : ORIGIN = 0x00100000, LENGTH = 512K
 }
 
 stack_size = 0x8000;    /* 32K stack */
@@ -27,10 +27,15 @@ SECTIONS
         *(.text)                /* Code sections */
         *(.text*)
 
+		__e_text = . ;
+		__data_rom = . ;
+	} > ROM
+
+	.rodata :
+	{
+        . = ALIGN(0x4);
         *(.rodata)              /* Read only data */
         *(.rodata.*)
-
-		__e_text = . ;
 		__data_rom = . ;
 	} > ROM
 
