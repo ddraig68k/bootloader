@@ -1,8 +1,9 @@
 #include "duart.h"
 
     .globl  init_duart
-    .globl  serial_out
-
+    .globl  char_out
+    .globl  char_in
+    .globl  has_char
 
 init_duart:
     move.l a0,-(sp)                     | save registers

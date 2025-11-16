@@ -7,24 +7,6 @@
 
 
 
-; Move to the end of current data indicated by whitespace or end
-; Assume the following registers are used
-; A2 - Buffer pointer
-; D2 - Buffer position
-parse_ib_find_end:
-      move.b (A2)+,D0                     ; Get the next character
-      addq #1,D2
-      cmp.w #1024,D2                      ; End of buffer
-      beq .pib_end_found
-      cmp.b #0,D0                         ; Null terminator?
-      beq .pib_end_found
-      cmp.b #' ',D0                       ; Space
-      beq .pib_end_found
-      bra parse_ib_find_end
-
-.pib_end_found
-      subq #1,A2                          ; Pointer to end character
-      rts
 
 ; Parse the input buffer data and create pointers to the command
 ; and any parameters. If there's no command the pointer will be 0.
@@ -267,9 +249,7 @@ command_table
       ; End of command table
       dc.l 0,0,0,0
 
-    .align 2
-serial_echo
-    dc.b    1
+
 
 
 ; list of commands
