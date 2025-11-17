@@ -415,6 +415,9 @@ command_table:
     dc.l s_cmd_poke,  command_poke, 2
     dc.l s_cmd_pokew, command_pokew, 2
     dc.l s_cmd_pokel, command_pokel, 2
+    dc.l s_cmd_run,   command_run, 1
+    dc.l s_cmd_runrom,command_runrom, 1
+    dc.l s_cmd_srec,  command_srec, 0
     | End of command table
     dc.l 0,0,0
 

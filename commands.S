@@ -69,9 +69,26 @@ command_peekl:
     rts
 
 command_poke:
-    movem.l a0-a2/d0-d1,-(sp)
+    movem.l a0-a2/d0-d2,-(sp)
     lea.l s_print_poke,a0
     bsr prints
+    move.b  #1,d1                   | Set the data length
+    bra .do_poke
+
+command_pokew:
+    movem.l a0-a2/d0-d2,-(sp)
+    lea.l s_print_pokew,a0
+    bsr prints
+    move.b  #2,d1                   | Set the data length
+    bra .do_poke
+
+command_pokel:
+    movem.l a0-a2/d0-d2,-(sp)
+    lea.l s_print_pokel,a0
+    bsr prints
+    move.b  #4,d1                   | Set the data length
+
+.do_poke:
     lea parser_args,a2
     move.l (a2)+,a0
     jsr string_to_hex
@@ -81,28 +98,24 @@ command_poke:
 .poke_data:
     cmp.l #0,d1                     | End or arguments
     beq .poke_done                  | No more parameters
-
     move.l (a2)+,d0                 | Get the data pointer
     jsr string_to_hex               | Convert from string
-    move.b d0,(a1)+                 | Store the data
+    cmp.b #4,d2                     | Check the data length
+    bne.s .poke_w
+    move.l d0,(a1)+                 | Store the long data
+    bra.s .poke_more
+.poke_w:
+    cmp.b #2,d2                     | Check the data length
+    bne.s .poke_b
+    move.w d0,(a1)+                 | Store the word data
+    bra.s .poke_more
+.poke_b:
+    move.b d0,(a1)+                 | Store the byte data
+.poke_more:
     subq.l #1,d1
     bne .poke_data
 .poke_done:
-    movem.l (sp)+,a0-a2/d0-d1
-    rts
-
-command_pokew:
-    movem.l a0-a2/d0,-(sp)
-    lea.l s_print_pokew,a0
-    bsr prints
-    movem.l (sp)+,a0-a2/d0
-    rts
-
-command_pokel:
-    movem.l a0-a2/d0,-(sp)
-    lea.l s_print_pokel,a0
-    bsr prints
-    movem.l (sp)+,a0-a2/d0
+    movem.l (sp)+,a0-a2/d0-d2
     rts
 
 command_notimplemented:
